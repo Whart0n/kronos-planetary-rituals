@@ -1,13 +1,16 @@
 import React from 'react';
 import { StyleSheet, Text, View, Switch, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, MapPin, Moon, Sun, Info, Shield, Trash2, LogOut, ChevronRight, Volume2, Vibrate } from 'lucide-react-native';
+import { Bell, MapPin, Moon, Sun, Info, Shield, Trash2, LogOut, ChevronRight, Volume2, Vibrate, Calendar, Clock } from 'lucide-react-native';
 import { useTheme } from '@/components/ThemeProvider';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useLocationStore } from '@/stores/locationStore';
 import { useRitualStore } from '@/stores/ritualStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useAuthStore } from '@/stores/authStore';
+import { scheduleUpcomingDayReminders } from '@/services/reminderService';
+import { requestCalendarPermission } from '@/services/calendarService';
+import { requestNotificationPermission } from '@/services/notificationService';
 
 export default function SettingsScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
@@ -27,6 +30,66 @@ export default function SettingsScreen() {
     }
   };
   
+  const handleToggleCalendarReminders = async () => {
+    try {
+      if (settings) {
+        const newValue = !settings.calendar_reminders;
+        updateSettings({ calendar_reminders: newValue });
+        
+        if (newValue) {
+          // Request calendar permission when enabling calendar reminders
+          const hasPermission = await requestCalendarPermission();
+          
+          if (hasPermission && settings.user_id) {
+            // Schedule reminders for upcoming days
+            await scheduleUpcomingDayReminders(settings.user_id);
+          } else if (!hasPermission) {
+            Alert.alert(
+              'Calendar Permission Required',
+              'Please grant calendar permission to add planetary days and hours to your calendar.',
+              [{ text: 'OK' }]
+            );
+            // Revert the setting if permission was denied
+            updateSettings({ calendar_reminders: false });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling calendar reminders:', error);
+      Alert.alert('Error', 'Failed to toggle calendar reminders. Please try again.');
+    }
+  };
+  
+  const handleTogglePushNotificationReminders = async () => {
+    try {
+      if (settings) {
+        const newValue = !settings.push_notification_reminders;
+        updateSettings({ push_notification_reminders: newValue });
+        
+        if (newValue) {
+          // Request notification permission when enabling push notification reminders
+          const hasPermission = await requestNotificationPermission();
+          
+          if (hasPermission && settings.user_id) {
+            // Schedule reminders for upcoming days
+            await scheduleUpcomingDayReminders(settings.user_id);
+          } else if (!hasPermission) {
+            Alert.alert(
+              'Notification Permission Required',
+              'Please grant notification permission to receive push notifications for planetary days and hours.',
+              [{ text: 'OK' }]
+            );
+            // Revert the setting if permission was denied
+            updateSettings({ push_notification_reminders: false });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling push notification reminders:', error);
+      Alert.alert('Error', 'Failed to toggle push notification reminders. Please try again.');
+    }
+  };
+  
   const handleToggleDarkMode = () => {
     try {
       toggleTheme();
@@ -38,8 +101,8 @@ export default function SettingsScreen() {
   const handleToggleAutoLocation = async () => {
     try {
       if (settings) {
-        const newValue = !settings.autoDetectLocation;
-        updateSettings({ autoDetectLocation: newValue });
+        const newValue = !settings.auto_detect_location;
+        updateSettings({ auto_detect_location: newValue });
         
         if (newValue && Platform.OS !== 'web') {
           try {
@@ -57,7 +120,7 @@ export default function SettingsScreen() {
   const handleToggleSound = () => {
     try {
       if (settings) {
-        updateSettings({ soundEnabled: !settings.soundEnabled });
+        updateSettings({ sound_enabled: !settings.sound_enabled });
       }
     } catch (error) {
       console.error('Error toggling sound:', error);
@@ -67,7 +130,7 @@ export default function SettingsScreen() {
   const handleToggleHaptic = () => {
     try {
       if (settings) {
-        updateSettings({ hapticFeedbackEnabled: !settings.hapticFeedbackEnabled });
+        updateSettings({ haptic_feedback_enabled: !settings.haptic_feedback_enabled });
       }
     } catch (error) {
       console.error('Error toggling haptic feedback:', error);
@@ -126,6 +189,8 @@ export default function SettingsScreen() {
   const defaultAutoDetectLocation = true;
   const defaultSoundEnabled = true;
   const defaultHapticFeedbackEnabled = true;
+  const defaultCalendarReminders = false;
+  const defaultPushNotificationReminders = false;
   
   const renderSettingItem = (
     icon: React.ReactNode,
@@ -187,14 +252,38 @@ export default function SettingsScreen() {
           )}
           
           {Platform.OS !== 'web' && renderSettingItem(
+            <Calendar size={24} color={colors.text} />,
+            'Calendar Reminders',
+            'Add planetary days and hours to your calendar',
+            <Switch
+              value={settings?.calendar_reminders ?? defaultCalendarReminders}
+              onValueChange={handleToggleCalendarReminders}
+              trackColor={{ false: '#3e3e3e', true: colors.primary }}
+              thumbColor={(settings?.calendar_reminders ?? defaultCalendarReminders) ? '#f4f3f4' : '#f4f3f4'}
+            />
+          )}
+          
+          {Platform.OS !== 'web' && renderSettingItem(
+            <Clock size={24} color={colors.text} />,
+            'Push Notification Reminders',
+            'Get push notifications for planetary days and hours',
+            <Switch
+              value={settings?.push_notification_reminders ?? defaultPushNotificationReminders}
+              onValueChange={handleTogglePushNotificationReminders}
+              trackColor={{ false: '#3e3e3e', true: colors.primary }}
+              thumbColor={(settings?.push_notification_reminders ?? defaultPushNotificationReminders) ? '#f4f3f4' : '#f4f3f4'}
+            />
+          )}
+          
+          {Platform.OS !== 'web' && renderSettingItem(
             <MapPin size={24} color={colors.text} />,
             'Auto-detect Location',
             'Automatically determine your location for accurate planetary hours',
             <Switch
-              value={settings?.autoDetectLocation ?? defaultAutoDetectLocation}
+              value={settings?.auto_detect_location ?? defaultAutoDetectLocation}
               onValueChange={handleToggleAutoLocation}
               trackColor={{ false: '#3e3e3e', true: colors.primary }}
-              thumbColor={(settings?.autoDetectLocation ?? defaultAutoDetectLocation) ? '#f4f3f4' : '#f4f3f4'}
+              thumbColor={(settings?.auto_detect_location ?? defaultAutoDetectLocation) ? '#f4f3f4' : '#f4f3f4'}
             />
           )}
           
@@ -215,10 +304,10 @@ export default function SettingsScreen() {
             'Sound Effects',
             'Enable sound effects for rituals and interactions',
             <Switch
-              value={settings?.soundEnabled ?? defaultSoundEnabled}
+              value={settings?.sound_enabled ?? defaultSoundEnabled}
               onValueChange={handleToggleSound}
               trackColor={{ false: '#3e3e3e', true: colors.primary }}
-              thumbColor={(settings?.soundEnabled ?? defaultSoundEnabled) ? '#f4f3f4' : '#f4f3f4'}
+              thumbColor={(settings?.sound_enabled ?? defaultSoundEnabled) ? '#f4f3f4' : '#f4f3f4'}
             />
           )}
           
@@ -227,10 +316,10 @@ export default function SettingsScreen() {
             'Haptic Feedback',
             'Enable vibration for interactions and ritual completions',
             <Switch
-              value={settings?.hapticFeedbackEnabled ?? defaultHapticFeedbackEnabled}
+              value={settings?.haptic_feedback_enabled ?? defaultHapticFeedbackEnabled}
               onValueChange={handleToggleHaptic}
               trackColor={{ false: '#3e3e3e', true: colors.primary }}
-              thumbColor={(settings?.hapticFeedbackEnabled ?? defaultHapticFeedbackEnabled) ? '#f4f3f4' : '#f4f3f4'}
+              thumbColor={(settings?.haptic_feedback_enabled ?? defaultHapticFeedbackEnabled) ? '#f4f3f4' : '#f4f3f4'}
             />
           )}
         </View>

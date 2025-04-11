@@ -16,6 +16,7 @@ interface ProfileState {
   addExperience: (amount: number) => Promise<void>;
   incrementStreak: () => Promise<void>;
   resetStreak: () => Promise<void>;
+  resetProfile: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -130,6 +131,31 @@ export const useProfileStore = create<ProfileState>((set, get) => {
       await get().updateProfile({
         streak_days: 0
       });
+    },
+      
+    resetProfile: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      // Create a profile with the user's ID but reset all other values
+      const resetProfileData = { 
+        ...defaultProfile, 
+        id: user.id,
+        updated_at: new Date().toISOString() 
+      };
+      
+      set({ isLoading: true, error: null });
+      try {
+        const { data, error } = await updateUserProfile(user.id, resetProfileData);
+        if (error) throw error;
+        
+        set({ profile: data });
+      } catch (error: any) {
+        console.error('Error in resetProfile:', error);
+        set({ error: error.message || 'Failed to reset profile' });
+      } finally {
+        set({ isLoading: false });
+      }
     },
       
     clearError: () => {

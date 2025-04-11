@@ -162,7 +162,16 @@ const Button = ({
   const textStyles = getTextStyles();
   
   // Determine if we should use a gradient background
+  // We'll use gradient on all platforms except web for performance reasons
   const useGradient = variant === 'primary' && Platform.OS !== 'web';
+  
+  // Define gradient colors based on the primary color
+  // Using 'as const' to make it a readonly tuple as required by LinearGradient
+  const gradientColors = [
+    colors.primary, // Use primary color as base
+    colors.primary, // Middle color
+    variant === 'primary' ? colors.primary : colors.secondary // End color with slight variation
+  ] as readonly [string, string, string];
   
   // Render button content
   const renderContent = () => {
@@ -199,7 +208,7 @@ const Button = ({
         style={[buttonStyles, style]}
       >
         <LinearGradient
-          colors={[colors.primaryLight, colors.primary, colors.primaryDark]}
+          colors={gradientColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -210,12 +219,26 @@ const Button = ({
     );
   }
   
+  // Add web-specific styles for better mobile web experience
+  const webStyles: ViewStyle = Platform.OS === 'web' ? {
+    // Use any type assertion for web-specific CSS properties
+    ...({
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      WebkitTapHighlightColor: 'transparent',
+      outline: 'none',
+      userSelect: 'none',
+      touchAction: 'manipulation'
+    } as any)
+  } : {};
+
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}
-      style={[buttonStyles, style]}
+      style={[buttonStyles, style, webStyles]}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading }}
     >
       {renderContent()}
     </TouchableOpacity>

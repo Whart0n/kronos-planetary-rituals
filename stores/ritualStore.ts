@@ -1,22 +1,17 @@
 import { create } from 'zustand';
 import { createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ritual, RitualLog } from '@/types';
+import { Ritual } from '@/types';
+import { RitualLog } from '@/app/types/database';
 import { getRitualLogs, addRitualLog } from '@/services/supabase';
 import { useAuthStore } from './authStore';
 import { ritualData } from '@/constants/rituals';
 import uuid from '@/utils/uuid';
 
-interface CompletedRitual {
-  id: string;
-  ritualId: string;
-  name: string;
-  completedAt: Date;
-  notes: string;
-  rating: number;
-}
+// This interface is deprecated, use RitualLog from database.ts instead
+interface CompletedRitual extends RitualLog {}
 
-const mockCompletedRituals: CompletedRitual[] = [];
+const mockCompletedRituals: RitualLog[] = [];
 
 interface RitualState {
   rituals: Ritual[];
@@ -29,6 +24,7 @@ interface RitualState {
   fetchCompletedRituals: () => Promise<void>;
   completeRitual: (ritualData: { id: string, planetId: string, completedAt: string, notes?: string, rating?: number }) => Promise<void>;
   getRitualById: (id: string) => Ritual | undefined;
+  clearRituals: () => void;
 }
 
 
@@ -69,15 +65,8 @@ export const useRitualStore = create<RitualState>()((set, get) => ({
             throw error;
           }
           
-          // Convert ritual logs to completed rituals
-          const completedRituals: CompletedRitual[] = data.map((log: any) => ({
-            id: log.id,
-            ritualId: log.ritual_id,
-            name: `${log.ritual_id.charAt(0).toUpperCase() + log.ritual_id.slice(1)} Ritual`,
-            completedAt: new Date(log.completed_at),
-            notes: log.notes || '',
-            rating: log.rating || 5
-          }));
+          // Use ritual logs directly
+          const completedRituals: RitualLog[] = data;
           
           set({ completedRituals, loading: false });
         } catch (error: any) {
@@ -113,14 +102,15 @@ export const useRitualStore = create<RitualState>()((set, get) => ({
           // Try to add the ritual log to Supabase
           await addRitualLog(ritualLog);
           
-          // Create a completed ritual for local state
-          const completedRitual: CompletedRitual = {
+          // Create a ritual log for local state
+          const completedRitual: RitualLog = {
             id: ritualData.id,
-            ritualId: ritualData.planetId,
-            name: `${ritualData.planetId.charAt(0).toUpperCase() + ritualData.planetId.slice(1)} Ritual`,
-            completedAt: new Date(ritualData.completedAt),
+            user_id: userId,
+            ritual_id: ritualData.planetId,
+            completed_at: ritualData.completedAt,
             notes: ritualData.notes || '',
-            rating: 5 // Default rating
+            rating: 5, // Default rating
+            created_at: new Date().toISOString()
           };
           
           set(state => ({
@@ -138,6 +128,10 @@ export const useRitualStore = create<RitualState>()((set, get) => ({
       
       getRitualById: (id: string) => {
         return get().rituals.find(ritual => ritual.id === id);
+      },
+      
+      clearRituals: () => {
+        set({ completedRituals: [], error: null });
       }
     })
 );

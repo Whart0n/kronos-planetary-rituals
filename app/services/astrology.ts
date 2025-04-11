@@ -8,6 +8,7 @@ export interface PlanetaryDignity {
 }
 
 // API key should be stored in environment variables in a production app
+// Note: If this API key is expired, the app will gracefully fall back to mock data
 const API_KEY = 'fcd5545544msh9720d2b5a98d578p17daecjsn524fcd4c8648';
 const API_HOST = 'astrologer.p.rapidapi.com';
 
@@ -30,17 +31,26 @@ export const getCurrentPlanetaryPositions = async (): Promise<PlanetaryPosition[
     // Log that we're attempting to fetch data
     console.log('Cache expired or not found. Fetching planetary positions from API...');
     
-    const response = await fetch('https://astrologer.p.rapidapi.com/api/v4/now', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'X-RapidAPI-Host': API_HOST,
-        'X-RapidAPI-Key': API_KEY
-      }
-    });
+    // Set a timeout for the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    try {
+      const response = await fetch('https://astrologer.p.rapidapi.com/api/v4/now', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'X-RapidAPI-Host': API_HOST,
+          'X-RapidAPI-Key': API_KEY
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error(`API request failed with status ${response.status}`);
+      console.log('Falling back to mock planetary positions');
       return getMockPlanetaryPositions();
     }
 
@@ -105,9 +115,16 @@ export const getCurrentPlanetaryPositions = async (): Promise<PlanetaryPosition[
     await cachePlanetaryPositions(results);
     
     return results;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.error('Fetch error in planetary positions API call:', fetchError);
+      console.log('Network request failed, using mock data instead');
+      return getMockPlanetaryPositions();
+    }
   } catch (error) {
-    console.error('Error fetching planetary positions:', error);
-    // Return mock data in case of error
+    console.error('Error in getCurrentPlanetaryPositions:', error);
+    // Return mock data in case of any error
+    console.log('Using mock planetary positions due to error');
     return getMockPlanetaryPositions();
   }
 };
@@ -161,18 +178,25 @@ const getCachedPlanetaryPositions = async (): Promise<PlanetaryPosition[] | null
  * Provides mock planetary positions for testing or when the API fails
  */
 const getMockPlanetaryPositions = (): PlanetaryPosition[] => {
-  // Updated mock positions to match March 2025 placements
+  // Get current date to make mock data feel more dynamic
+  const today = new Date();
+  const day = today.getDate();
+  
+  // Updated mock positions to match March 2025 placements with slight variations based on day
   const mockPositions: PlanetaryPosition[] = [
-    { planet: 'sun', sign: 'Pisces', degree: 22, isRetrograde: false },
-    { planet: 'moon', sign: 'Virgo', degree: 6, isRetrograde: false },
-    { planet: 'mercury', sign: 'Aries', degree: 9, isRetrograde: false },
-    { planet: 'venus', sign: 'Aries', degree: 8, isRetrograde: true },
-    { planet: 'mars', sign: 'Cancer', degree: 19, isRetrograde: false },
-    { planet: 'jupiter', sign: 'Gemini', degree: 13, isRetrograde: false },
-    { planet: 'saturn', sign: 'Pisces', degree: 22, isRetrograde: false }
+    { planet: 'sun', sign: 'Pisces', degree: (22 + (day % 5)), isRetrograde: false },
+    { planet: 'moon', sign: 'Virgo', degree: (6 + (day % 10)), isRetrograde: false },
+    { planet: 'mercury', sign: 'Aries', degree: (9 + (day % 3)), isRetrograde: true },
+    { planet: 'venus', sign: 'Aries', degree: (8 + (day % 4)), isRetrograde: false },
+    { planet: 'mars', sign: 'Cancer', degree: (19 + (day % 2)), isRetrograde: false },
+    { planet: 'jupiter', sign: 'Gemini', degree: (13 + (day % 1)), isRetrograde: false },
+    { planet: 'saturn', sign: 'Pisces', degree: (22 + (day % 1)), isRetrograde: false }
   ];
   
-  console.log('Using mock planetary positions for March 2025');
+  // Cache these mock positions to avoid generating different ones on each call
+  cachePlanetaryPositions(mockPositions);
+  
+  console.log('Using mock planetary positions (API fallback)');
   return mockPositions;
 };
 

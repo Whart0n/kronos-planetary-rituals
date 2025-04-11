@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { StyleSheet, View, Text, ViewStyle } from 'react-native';
+import { StyleSheet, View, Text, ViewStyle, Platform, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../components/ThemeProvider';
 
@@ -10,6 +10,8 @@ interface CardProps {
   variant?: 'default' | 'elevated' | 'outlined' | 'filled';
   color?: string;
   withGradient?: boolean;
+  onPress?: () => void;
+  accessibilityLabel?: string;
 }
 
 const Card = ({ 
@@ -18,7 +20,9 @@ const Card = ({
   title, 
   variant = 'default',
   color,
-  withGradient = false
+  withGradient = false,
+  onPress,
+  accessibilityLabel
 }: CardProps) => {
   const { colors, currentDayTheme } = useTheme();
   
@@ -29,6 +33,16 @@ const Card = ({
       borderRadius: currentDayTheme?.ui?.cardBorderRadius || 16,
       overflow: 'hidden',
     };
+    
+    // Add web-specific styles for better mobile experience
+    if (Platform.OS === 'web') {
+      Object.assign(baseStyles, {
+        // @ts-ignore - these are web-specific properties
+        WebkitTapHighlightColor: 'transparent',
+        cursor: onPress ? 'pointer' : 'default',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+      });
+    }
     
     switch (variant) {
       case 'elevated':
@@ -85,10 +99,17 @@ const Card = ({
   
   // Render card with or without gradient
   if (withGradient) {
+    // Define default gradient colors if theme doesn't provide them
+    const gradientColors = [
+      currentDayTheme?.colors?.gradientStart || colors.background,
+      currentDayTheme?.colors?.gradientMiddle || colors.card,
+      currentDayTheme?.colors?.gradientEnd || colors.background
+    ] as readonly [string, string, string];
+    
     return (
       <View style={[cardStyles, style]}>
         <LinearGradient
-          colors={[colors.gradientStart, colors.gradientMiddle, colors.gradientEnd]}
+          colors={gradientColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.gradient}
@@ -99,10 +120,22 @@ const Card = ({
     );
   }
   
+  // Determine if we should use TouchableOpacity or View based on onPress prop
+  const CardComponent = onPress ? TouchableOpacity : View;
+  const cardProps = onPress ? {
+    onPress,
+    activeOpacity: 0.9,
+    accessibilityRole: "button" as const, // Type as const to match AccessibilityRole
+    accessibilityLabel: accessibilityLabel || title,
+  } : {};
+  
   return (
-    <View style={[cardStyles, style]}>
+    <CardComponent 
+      style={[cardStyles, style]}
+      {...cardProps}
+    >
       {renderContent()}
-    </View>
+    </CardComponent>
   );
 };
 

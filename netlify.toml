@@ -1,0 +1,17 @@
+[build]
+  command = "expo export:web"
+  publish = "dist/web"
+  
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  command = "expo start --web"
+  port = 19006
+  targetPort = 19006
+  framework = "expo"

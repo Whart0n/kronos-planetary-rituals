@@ -645,7 +645,7 @@ export default function ProfileScreen() {
                     {ritual.name}
                   </Text>
                   <Text style={[styles.activityDate, { color: colors.textSecondary }]}>
-                    {formatDate(ritual.completedAt)}
+                    {formatDate(ritual.completed_at ? new Date(ritual.completed_at) : null)}
                   </Text>
                 </View>
               </View>

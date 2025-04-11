@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { StyleSheet, View, ViewStyle, Text } from 'react-native';
+import { StyleSheet, View, ViewStyle, Text, Platform, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from './ThemeProvider';
 
@@ -10,6 +10,8 @@ interface DailyCardProps {
   glowing?: boolean;
   variant?: 'default' | 'parchment' | 'iron' | 'ritual';
   title?: string;
+  onPress?: () => void;
+  accessibilityLabel?: string;
 }
 
 const DailyCard = ({ 
@@ -18,7 +20,9 @@ const DailyCard = ({
   color,
   glowing = false,
   variant = 'default',
-  title
+  title,
+  onPress,
+  accessibilityLabel
 }: DailyCardProps) => {
   const { colors, currentDayTheme } = useTheme();
   
@@ -30,17 +34,18 @@ const DailyCard = ({
     try {
       switch (variant) {
         case 'parchment':
-          return [colors.card, colors.card, colors.card];
+          return [colors.card, colors.card, colors.card] as readonly [string, string, string];
         case 'iron':
-          return [colors.card, colors.card, colors.card];
+          return [colors.card, colors.card, colors.card] as readonly [string, string, string];
         case 'ritual':
-          return [cardColor, colors.card, colors.card];
+          return [cardColor, colors.card, colors.card] as readonly [string, string, string];
         default:
-          return [cardColor, colors.card];
+          // For default case, ensure we have at least 2 colors as required by LinearGradient
+          return [cardColor, colors.card, colors.card] as readonly [string, string, string];
       }
     } catch (error) {
       console.error('Error in getGradientColors:', error);
-      return [colors.card, colors.card];
+      return [colors.card, colors.card, colors.card] as readonly [string, string, string];
     }
   };
   
@@ -146,18 +151,44 @@ const DailyCard = ({
   // Safely get primary color with fallback
   const primaryColor = currentDayTheme?.colors?.primary || colors.primary;
   
+  // Determine if we should use TouchableOpacity or View based on onPress prop
+  const CardComponent = onPress ? TouchableOpacity : View;
+  const cardProps = onPress ? {
+    onPress,
+    activeOpacity: 0.9,
+    accessibilityRole: "button" as const,
+    accessibilityLabel: accessibilityLabel || title,
+  } : {};
+  
+  // Add web-specific styles for better mobile experience
+  const webStyles: ViewStyle = Platform.OS === 'web' ? {
+    // @ts-ignore - these are web-specific properties
+    WebkitTapHighlightColor: 'transparent',
+    cursor: onPress ? 'pointer' : 'default',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    // Add hover effect only for interactive cards
+    ...(onPress && {
+      // @ts-ignore - web-specific
+      ':hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+      }
+    })
+  } : {};
+  
   return (
-    <View style={[
+    <CardComponent style={[
       styles.container, 
       { borderRadius },
-      style
-    ]}>
+      style,
+      webStyles
+    ]} {...cardProps}>
       {/* Jagged border effect */}
       <View style={[styles.jaggedBorder, borderStyle]}>
         {/* Glowing effect for active cards */}
         {glowing && (
           <LinearGradient
-            colors={[cardColor, 'transparent']}
+            colors={[cardColor, 'transparent'] as readonly [string, string]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={styles.glow}
@@ -211,7 +242,7 @@ const DailyCard = ({
       <View style={[styles.inkDrip, { backgroundColor: `${colors.text}10`, left: '20%', height: 6 }]} />
       <View style={[styles.inkDrip, { backgroundColor: `${colors.text}10`, left: '70%', height: 8 }]} />
       <View style={[styles.inkDrip, { backgroundColor: `${colors.text}10`, left: '40%',  height: 4 }]} />
-    </View>
+    </CardComponent>
   );
 };
 
@@ -219,6 +250,8 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: 12,
     position: 'relative',
+    // Add better touch target size for mobile
+    minHeight: 80,
   },
   jaggedBorder: {
     overflow: 'hidden',

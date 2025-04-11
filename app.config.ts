@@ -50,6 +50,30 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           "expo-modules-core"
         ]
       }
+    },
+    // Enhanced mobile web compatibility settings
+    meta: {
+      viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+      "apple-mobile-web-app-capable": "yes",
+      "apple-mobile-web-app-status-bar-style": "black-translucent",
+      "theme-color": "#ffffff",
+      "mobile-web-app-capable": "yes"
+    },
+    // PWA configuration
+    templatePath: "./web-build-template.html",
+    name: "Kronos Planetary Rituals",
+    shortName: "Kronos",
+    lang: "en",
+    scope: "/",
+    themeColor: "#ffffff",
+    backgroundColor: "#ffffff",
+    startUrl: "/",
+    display: "standalone",
+    orientation: "portrait",
+    // Include service worker for offline capabilities
+    serviceWorker: {
+      src: "./assets/web/service-worker.js",
+      scope: "/"
     }
   },
   plugins: [

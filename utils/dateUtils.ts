@@ -58,7 +58,11 @@ export const getLocalSunriseSunset = (
 };
 
 // Format a date to a readable string
-export const formatDate = (date: Date): string => {
+export const formatDate = (date?: Date | null): string => {
+  if (!date) {
+    return 'Unknown date';
+  }
+  
   try {
     const options: Intl.DateTimeFormatOptions = { 
       weekday: 'long', 
@@ -69,12 +73,21 @@ export const formatDate = (date: Date): string => {
     return date.toLocaleDateString(undefined, options);
   } catch (error) {
     console.error('Error formatting date:', error);
-    return date.toDateString();
+    try {
+      return date.toDateString();
+    } catch (innerError) {
+      console.error('Error in fallback date formatting:', innerError);
+      return 'Invalid date';
+    }
   }
 };
 
 // Format a time to a readable string
-export const formatTime = (date: Date): string => {
+export const formatTime = (date?: Date | null): string => {
+  if (!date) {
+    return 'Unknown time';
+  }
+  
   try {
     const options: Intl.DateTimeFormatOptions = { 
       hour: 'numeric', 
@@ -84,7 +97,12 @@ export const formatTime = (date: Date): string => {
     return date.toLocaleTimeString(undefined, options);
   } catch (error) {
     console.error('Error formatting time:', error);
-    return date.toTimeString().substring(0, 5);
+    try {
+      return date.toTimeString().substring(0, 5);
+    } catch (innerError) {
+      console.error('Error in fallback time formatting:', innerError);
+      return 'Invalid time';
+    }
   }
 };
 
